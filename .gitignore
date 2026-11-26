@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+gcp-key.json
+*.json
+!.github/**
+.DS_Store
