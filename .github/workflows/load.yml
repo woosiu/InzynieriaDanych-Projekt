@@ -1,0 +1,50 @@
+name: Load data from Neon to BigQuery
+
+on:
+  workflow_dispatch:
+    inputs:
+      load_mode:
+        description: 'Tryb ładowania (full_refresh lub incremental)'
+        required: true
+        default: 'incremental'
+        type: choice
+        options:
+          - incremental
+          - full_refresh
+  schedule:
+    - cron: '0 6 * * *'
+
+jobs:
+  extract-and-load:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write GCP service account key to file
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: printf '%s' "$GCP_SA_KEY" > gcp-key.json
+
+      - name: Run extract and load script
+        env:
+          NEON_CONNECTION_STRING: ${{ secrets.NEON_CONNECTION_STRING }}
+          GOOGLE_APPLICATION_CREDENTIALS: gcp-key.json
+          BQ_PROJECT_ID: id-projekt-515914
+          BQ_DATASET: landing
+          BQ_LOCATION: EU
+          LOAD_MODE: ${{ github.event.inputs.load_mode || 'incremental' }}
+        run: python extract_load.py
+
+      - name: Clean up key file
+        if: always()
+        run: rm -f gcp-key.json
